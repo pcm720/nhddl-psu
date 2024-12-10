@@ -1,73 +1,49 @@
 //go:build js && wasm
 
+// WebAssembly UI for NHDDL PSU builder
+// Build with TinyGo for significantly smaller executable
+
 package main
 
 import (
 	"bytes"
-	"embed"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"syscall/js"
 	"time"
 
+	"github.com/pcm720/nhddl-psu/gh"
 	"github.com/pcm720/psu-go"
-	"gopkg.in/yaml.v3"
 )
 
-//go:embed nhddl/res/sas/app/*
-var iconResources embed.FS
+// Must be set at build time
+var Repo string
+var CORSProxy string
 
-func getEmbeddedFiles() ([]psu.File, error) {
-	// Get number of embedded files
-	entry, err := iconResources.ReadDir("app")
-	if err != nil {
-		return nil, err
+var ghf *gh.Fetcher
+
+func main() {
+	if Repo == "" {
+		fmt.Println("repository not set")
+		return
 	}
-
-	files := make([]psu.File, len(entry))
-	for i, f := range entry {
-		data, err := iconResources.ReadFile("app/" + f.Name())
-		if err != nil {
-			return nil, err
-		}
-		info, err := f.Info()
-		if err != nil {
-			return nil, err
-		}
-		files[i] = psu.File{
-			Name:     f.Name(),
-			Created:  info.ModTime(),
-			Modified: info.ModTime(),
-			Data:     data,
-		}
+	fmt.Printf("using repository %s\nCORS proxy is '%s'\n", Repo, CORSProxy)
+	ghf = &gh.Fetcher{
+		Repo:      Repo,
+		CORSProxy: CORSProxy,
 	}
-	return files, nil
+	js.Global().Set("getAllTags", getAllTagsWrapper())
+	js.Global().Call("updateTags")
+	js.Global().Set("buildPSU", generatePSU())
+	js.Global().Set("getNHDDLConfig", getNHDDLConfig())
+	<-make(chan struct{})
 }
-
-type NHDDLMode string
-
-const (
-	NHDDLMode_ALL    = "all"
-	NHDDLMode_ATA    = "ata"
-	NHDDLMode_USB    = "usb"
-	NHDDLMode_MX4SIO = "mx4sio"
-	NHDDLMode_UDPBD  = "udpbd"
-	NHDDLMode_iLink  = "ilink"
-)
-
-type NHDDLConfig struct {
-	Use480p bool      `yaml:"480p,omitempty"`
-	UDPBDIP string    `yaml:"udpbd_ip,omitempty"`
-	Mode    NHDDLMode `yaml:"mode,omitempty"`
-}
-
-var emptyConfig = NHDDLConfig{}
 
 func getAllTagsWrapper() js.Func {
 	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go func() {
-			pretty, err := getAllTags()
+			pretty, err := ghf.GetAllTags()
 			if err != nil {
 				fmt.Printf("unable to convert to json %s\n", err)
 				return
@@ -99,13 +75,8 @@ func getNHDDLConfig() js.Func {
 		if c == emptyConfig {
 			return nil
 		}
-		res, err := yaml.Marshal(c)
-		if err != nil {
-			fmt.Printf("failed to generate YAML: %s\n", err)
-			return nil
-		}
 
-		return string(res)
+		return c.getYAML()
 	})
 }
 
@@ -137,26 +108,26 @@ func generatePSU() js.Func {
 			}
 
 			if c != emptyConfig {
-				res, err := yaml.Marshal(c)
-				if err != nil {
-					fmt.Printf("failed to generate YAML: %s\n", err)
-					return
-				}
-
 				files = append(files, psu.File{
 					Name:     "nhddl.yaml",
 					Created:  time.Now(),
 					Modified: time.Now(),
-					Data:     res,
+					Data:     []byte(c.getYAML()),
 				})
 			}
 
-			elfFile, err := downloadELF(tag, isStandalone)
+			targetFile := "nhddl.elf"
+			if isStandalone {
+				targetFile = "nhddl-standalone.elf"
+			}
+
+			elfFile, err := ghf.GetFiles(tag, []string{targetFile})
 			if err != nil {
 				fmt.Printf("failed to download ELF: %s\n", err)
 				return
 			}
-			files = append(files, elfFile)
+			elfFile[0].Name = "nhddl.elf" // Force file name
+			files = append(files, elfFile[0])
 
 			b := &bytes.Buffer{}
 			if err := psu.BuildPSU(b, "NHDDL", files); err != nil {
@@ -167,12 +138,4 @@ func generatePSU() js.Func {
 		}(tag, isStandalone, c)
 		return nil
 	})
-}
-
-func main() {
-	js.Global().Set("getAllTags", getAllTagsWrapper())
-	js.Global().Call("updateTags")
-	js.Global().Set("buildPSU", generatePSU())
-	js.Global().Set("getNHDDLConfig", getNHDDLConfig())
-	<-make(chan struct{})
 }

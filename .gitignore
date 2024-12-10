@@ -1,6 +1,8 @@
 *.yaml
 *.wasm
 *.js
+*.psu
+out/
 # Created by https://www.toptal.com/developers/gitignore/api/macos,windows,linux
 
 ### Linux ###
