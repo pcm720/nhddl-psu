@@ -1,0 +1,48 @@
+name: Pages
+
+on:
+  push:
+    tags:
+      - "pages"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: tinygo/tinygo:0.34.0
+      options: --user root
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fetch full clone
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --prune --unshallow
+
+      - name: Build WASM with TinyGo
+        id: build
+        run: |
+          REPO=${{ vars.REPO }} CORS_PROXY=${{ vars.CORS_PROXY }} make
+
+      - name: Upload artifacts
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
