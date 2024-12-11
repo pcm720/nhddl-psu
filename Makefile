@@ -9,7 +9,7 @@ wasm:
 
 nhddl-psu: clean wasm
 	cp "$(shell tinygo env TINYGOROOT)/targets/wasm_exec.js" ./out/
-	cp ./cmd/nhddl-psu/index.html ./out/
+	cp -r ./cmd/nhddl-psu/res/* ./out/
 
 psubuilder: clean
 	go build -o out/psubuilder ./cmd/psubuilder

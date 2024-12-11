@@ -14,7 +14,7 @@ var iconResources embed.FS // Embeds icon resources
 type NHDDLMode string
 
 const (
-	NHDDLMode_ALL    = "all"
+	NHDDLMode_ALL    = ""
 	NHDDLMode_ATA    = "ata"
 	NHDDLMode_USB    = "usb"
 	NHDDLMode_MX4SIO = "mx4sio"
@@ -22,17 +22,24 @@ const (
 	NHDDLMode_iLink  = "ilink"
 )
 
+type NHDDLVMode string
+
+const (
+	NHDDLVMode_Default = "default"
+	NHDDLVMode_480p    = "480p"
+)
+
 type NHDDLConfig struct {
-	Use480p bool      `yaml:"480p,omitempty"`
-	UDPBDIP string    `yaml:"udpbd_ip,omitempty"`
-	Mode    NHDDLMode `yaml:"mode,omitempty"`
+	VMode   string
+	UDPBDIP string
+	Mode    NHDDLMode
 }
 
 // Generates nhddl.yaml
 func (c NHDDLConfig) getYAML() string {
 	// Not using yaml library saves ~500KB
 	b := strings.Builder{}
-	if c.Use480p {
+	if c.VMode == "480p" {
 		b.WriteString("480p:\n")
 	}
 	if c.Mode != NHDDLMode_ALL {
@@ -45,7 +52,9 @@ func (c NHDDLConfig) getYAML() string {
 	return b.String()
 }
 
-var emptyConfig = NHDDLConfig{}
+var emptyConfig = NHDDLConfig{
+	VMode: NHDDLVMode_Default,
+}
 
 func getEmbeddedFiles() ([]psu.File, error) {
 	// Get number of embedded files

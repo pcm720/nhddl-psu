@@ -8,20 +8,26 @@ package main
 import (
 	"bytes"
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"syscall/js"
 	"time"
+	"unsafe"
 
 	"github.com/pcm720/nhddl-psu/gh"
 	"github.com/pcm720/psu-go"
 )
 
 // Must be set at build time
-var Repo string
-var CORSProxy string
+var (
+	Repo      string
+	CORSProxy string
+)
 
-var ghf *gh.Fetcher
+// Global variables
+var (
+	ghf *gh.Fetcher
+	b   bytes.Buffer // Reusable file buffer
+)
 
 func main() {
 	if Repo == "" {
@@ -40,12 +46,17 @@ func main() {
 	<-make(chan struct{})
 }
 
+func displayError(text string) {
+	fmt.Println(text)
+	js.Global().Call("displayError", text)
+}
+
 func getAllTagsWrapper() js.Func {
 	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go func() {
 			pretty, err := ghf.GetAllTags()
 			if err != nil {
-				fmt.Printf("unable to convert to json %s\n", err)
+				displayError(fmt.Sprintf("Failed to get tags: %s", err))
 				return
 			}
 			arr := make([]any, len(pretty))
@@ -61,13 +72,15 @@ func getAllTagsWrapper() js.Func {
 
 func getNHDDLConfig() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
+		b.Reset()
+
 		if len(args) != 3 {
-			fmt.Println("invalid number of arguments")
+			displayError(fmt.Sprintf("Invalid number of arguments"))
 			return nil
 		}
 
 		c := NHDDLConfig{
-			Use480p: args[0].Bool(),
+			VMode:   args[0].String(),
 			UDPBDIP: args[2].String(),
 			Mode:    NHDDLMode(args[1].String()),
 		}
@@ -76,26 +89,31 @@ func getNHDDLConfig() js.Func {
 			return nil
 		}
 
-		return c.getYAML()
+		b.WriteString(c.getYAML())
+		data := b.Bytes()
+		js.Global().Call("saveFile", "nhddl.yaml", unsafe.Pointer(&data[0]), len(data))
+		return nil
 	})
 }
 
 func generatePSU() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
+		b.Reset()
+
 		if len(args) != 3 {
-			fmt.Println("invalid number of arguments")
+			displayError(fmt.Sprintf("Invalid number of arguments"))
 			return nil
 		}
 
 		tag := args[0].String()
-		if tag == "" {
+		if (tag == "") || (tag == "unknown") {
 			return nil
 		}
 
 		isStandalone := args[1].Bool()
 
 		c := NHDDLConfig{
-			Use480p: args[2].Index(0).Bool(),
+			VMode:   args[2].Index(0).String(),
 			UDPBDIP: args[2].Index(2).String(),
 			Mode:    NHDDLMode(args[2].Index(1).String()),
 		}
@@ -103,7 +121,7 @@ func generatePSU() js.Func {
 		go func(tag string, isStandalone bool, config NHDDLConfig) {
 			files, err := getEmbeddedFiles()
 			if err != nil {
-				fmt.Printf("failed to get embedded files: %s\n", err)
+				displayError(fmt.Sprintf("Failed to get embedded files: %s\n", err))
 				return
 			}
 
@@ -123,18 +141,18 @@ func generatePSU() js.Func {
 
 			elfFile, err := ghf.GetFiles(tag, []string{targetFile})
 			if err != nil {
-				fmt.Printf("failed to download ELF: %s\n", err)
+				displayError(fmt.Sprintf("Failed to download ELF: %s\n", err))
 				return
 			}
 			elfFile[0].Name = "nhddl.elf" // Force file name
 			files = append(files, elfFile[0])
 
-			b := &bytes.Buffer{}
-			if err := psu.BuildPSU(b, "NHDDL", files); err != nil {
-				fmt.Printf("failed to generate PSU: %s\n", err)
+			if err := psu.BuildPSU(&b, "NHDDL", files); err != nil {
+				displayError(fmt.Sprintf("Failed to generate PSU: %s\n", err))
 				return
 			}
-			js.Global().Call("downloadFile", "nhddl.psu", base64.RawStdEncoding.EncodeToString(b.Bytes()))
+			data := b.Bytes()
+			js.Global().Call("saveFile", "nhddl.psu", unsafe.Pointer(&data[0]), len(data))
 		}(tag, isStandalone, c)
 		return nil
 	})

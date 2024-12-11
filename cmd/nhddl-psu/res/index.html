@@ -1,0 +1,291 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="font/stylesheet.css">
+    <meta charset="utf-8" />
+    <script src="wasm_exec.js"></script>
+    <script>
+        var wasm;
+
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+            wasm = result.instance;
+        });
+
+        async function updateTags() {
+            getAllTags();
+        }
+
+        function setTagList(list) {
+            let tagSelector = document.getElementById("tagSelector");
+            let btn = document.getElementById("downloadBtn");
+            tagSelector.innerHTML = "";
+            for (const tag of list) {
+                tagSelector.innerHTML += `<option value="${tag}">${tag}</option>`;
+            }
+            if (list.length > 0) {
+                btn.disabled = false;
+            }
+        }
+
+        function displayError(text) {
+            document.getElementById("errorText").innerHTML = "Error: " + text;
+        }
+
+        function checkVersion() {
+            let tagSelector = document.getElementById("tagSelector");
+            let versionSelector = document.getElementById("versionSelector");
+            let btn = document.getElementById("downloadBtn");
+            if (tagSelector.value === "unknown") {
+                btn.disabled = true;
+                return;
+            }
+            btn.disabled = false;
+
+            if ((tagSelector.value !== "nightly") && (tagSelector.value < "v0.4.0")) {
+                versionSelector.value = "non-standalone";
+                versionSelector.disabled = true;
+            } else {
+                versionSelector.disabled = false;
+            }
+        }
+
+        function checkConfig() {
+            let ipAddr = document.getElementById("ipAddr");
+            let vmodeSet = (document.getElementById("videoModeSelector").value === "default") ? false : true;
+            let modeSet = (document.getElementById("modeSelector").value === "") ? false : true;
+            let btn = document.getElementById("generateBtn");
+
+            if (!ipAddr.checkValidity()) {
+                btn.disabled = true;
+                return;
+            }
+
+            if ((ipAddr.checkValidity() && ipAddr.value !== "") || vmodeSet || modeSet) {
+                btn.disabled = false;
+                return;
+            }
+            btn.disabled = true;
+        }
+
+        function downloadPSU() {
+            document.getElementById("errorText").innerHTML = "";
+            let config = [];
+            let ipAddr = document.getElementById("ipAddr");
+            if (ipAddr.checkValidity()) {
+                config[0] = document.getElementById("videoModeSelector").value;
+                config[1] = document.getElementById("modeSelector").value;
+                config[2] = ipAddr.value;
+            }
+            let tag = document.getElementById("tagSelector").value;
+
+            let standalone = false;
+            if (document.getElementById("versionSelector").value === "standalone") {
+                standalone = true;
+            }
+            buildPSU(tagSelector.value, standalone, config);
+        }
+
+        function generateYAML() {
+            document.getElementById("errorText").innerHTML = "";
+            let ipAddr = document.getElementById("ipAddr");
+            if (!ipAddr.checkValidity()) {
+                alert("Invalid IP address");
+                return;
+            }
+            let vmode = document.getElementById("videoModeSelector").value;
+            let mode = document.getElementById("modeSelector").value;
+            getNHDDLConfig(vmode, mode, ipAddr.value);
+        }
+
+        // Thanks to https://stackoverflow.com/a/33542499
+        function saveFile(filename, dataPtr, dataLength) {
+            // Get data straight from WASM memory
+            let memory = wasm.exports.memory;
+            const blob = new Blob([memory.buffer.slice(dataPtr, dataPtr + dataLength)], { type: 'application/octet-stream' });
+            if (window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveBlob(blob, filename);
+            }
+            else {
+                const elem = window.document.createElement('a');
+                elem.href = window.URL.createObjectURL(blob, { oneTimeOnly: true });
+                elem.style.display = 'none';
+                elem.download = filename;
+                document.body.appendChild(elem);
+                elem.click();
+                document.body.removeChild(elem);
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div class="errorText" id="errorText"></div>
+    <div class="page">
+        <div class="header">
+            <img src="logo.png">
+            <br>
+            PSU Generator
+        </div>
+        <br>
+        <br>
+        <br>
+        <div class="title">NHDDL version</div>
+        <div class="selectorGroup" onchange="checkVersion()">
+            <div class="optionTitle">Release tag</div>
+            <select name="tagSelector" id="tagSelector">
+                <option>unknown</option>
+            </select>
+            <br><br>
+            <div class="optionTitle">Version</div>
+            <select id="versionSelector" onchange="checkVersion()">
+                <option value="non-standalone">non-standalone</option>
+                <option value="standalone">standalone</option>
+            </select>
+        </div>
+        <br>
+        <div class="title">Configuration file</div>
+        <div class="selectorGroup">
+            <div class="optionTitle">NHDDL mode</div>
+            <select id="modeSelector" onchange="checkConfig()">
+                <option value="">auto</option>
+                <option value="ata">ATA</option>
+                <option value="usb">USB</option>
+                <option value="mx4sio">MX4SIO</option>
+                <option value="udpbd">UDPBD</option>
+                <option value="ilink">iLink</option>
+            </select>
+            <br><br>
+            <div class="optionTitle">NHDDL video mode</div>
+            <select id="videoModeSelector" onchange="checkConfig()">
+                <option value="default">480i/576i</option>
+                <option value="480p">480p</option>
+            </select>
+            <br><br>
+            <div class="optionTitle">PS2 IP Address for UDPBD</div>
+            <input type="text" id="ipAddr" minlength="7" maxlength="15" size="15" onkeydown="checkConfig()"
+                onchange="checkConfig()"
+                pattern="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+        </div>
+        <i>File will be included in the generated PSU</i>
+        <br>
+        <br>
+        <br>
+        <button onClick="downloadPSU()" id="downloadBtn" disabled="true">Download PSU</button>
+        <button onClick="generateYAML()" id="generateBtn" disabled="true">Download nhddl.yaml</button>
+        <br>
+        <br>
+    </div>
+</body>
+
+</html>
+
+<style>
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .page {
+        text-align: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .header {
+        width: 20em;
+        height: 3em;
+        font-size: 2em;
+        line-height: 1.5em;
+        align-content: center;
+        text-align: center;
+        margin: auto;
+    }
+
+    img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+
+    .title {
+        font-size: 1.2em;
+        line-height: 2em;
+    }
+
+    .selectorGroup {
+        width: 20em;
+        height: auto;
+        margin: auto;
+        padding: 1em;
+        border: solid 2px gray;
+        border-radius: 0.5em;
+    }
+
+    .optionTitle {
+        text-align: left;
+    }
+
+    input {
+        border-radius: 0.5em;
+        font-size: 1.1em;
+        width: 18em;
+        height: 1.8em;
+        text-align: center;
+        text-align-last: center;
+    }
+
+    input[type="checkbox"] {
+        height: 1em;
+        font-size: 1em;
+        scale: 1.5;
+        width: auto;
+    }
+
+    input:invalid {
+        color: red;
+        border: 2px solid red;
+    }
+
+    select {
+        border-radius: 0.5em;
+        width: 100%;
+        height: 1.8em;
+        font-size: 1.1em;
+        width: 18.5em;
+        text-align: center;
+        text-align-last: center;
+    }
+
+    .errorText {
+        color: red;
+        font-size: 1.2em;
+    }
+
+
+    button {
+        font-family: 'dejavu_sansbook', sans-serif;
+        font-size: 1.2em;
+        width: 12em;
+        height: 2.5em;
+        border-radius: 0.5em;
+        background-color: #1C7FB4;
+        color: white;
+        border-color: black;
+    }
+
+    button:disabled {
+        background-color: gray;
+    }
+
+    body {
+        font-family: 'dejavu_sansbook', sans-serif;
+        font-size: 0.9em;
+        color: lightgray;
+        background-color: #21262d;
+    }
+</style>
