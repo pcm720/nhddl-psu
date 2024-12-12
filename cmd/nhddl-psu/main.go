@@ -54,13 +54,13 @@ func displayError(text string) {
 func getAllTagsWrapper() js.Func {
 	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		go func() {
-			pretty, err := ghf.GetAllTags()
+			tags, err := ghf.GetAllTags()
 			if err != nil {
 				displayError(fmt.Sprintf("Failed to get tags: %s", err))
 				return
 			}
-			arr := make([]any, len(pretty))
-			for i, p := range pretty {
+			arr := make([]any, len(tags))
+			for i, p := range tags {
 				arr[i] = p
 			}
 			js.Global().Call("setTagList", arr)
@@ -81,8 +81,8 @@ func getNHDDLConfig() js.Func {
 
 		c := NHDDLConfig{
 			VMode:   args[0].String(),
-			UDPBDIP: args[2].String(),
 			Mode:    NHDDLMode(args[1].String()),
+			UDPBDIP: args[2].String(),
 		}
 
 		if c == emptyConfig {
@@ -114,8 +114,8 @@ func generatePSU() js.Func {
 
 		c := NHDDLConfig{
 			VMode:   args[2].Index(0).String(),
-			UDPBDIP: args[2].Index(2).String(),
 			Mode:    NHDDLMode(args[2].Index(1).String()),
+			UDPBDIP: args[2].Index(2).String(),
 		}
 
 		go func(tag string, isStandalone bool, config NHDDLConfig) {
