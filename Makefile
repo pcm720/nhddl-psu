@@ -1,5 +1,6 @@
 REPO ?= pcm720/nhddl
-CORS_PROXY ?= 
+CORS_PROXY ?=
+VERSION ?= $(shell git describe --always --dirty --tags --exclude pages)
 
 all: nhddl-psu
 
@@ -12,7 +13,7 @@ nhddl-psu: clean wasm
 	cp -r ./cmd/nhddl-psu/res/* ./out/
 
 psubuilder: clean
-	go build -o out/psubuilder ./cmd/psubuilder
+	go build -ldflags "-X main.Version=$(VERSION)" -o out/psubuilder ./cmd/psubuilder
  
 clean:
 	rm -rf out

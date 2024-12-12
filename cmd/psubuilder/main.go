@@ -16,10 +16,13 @@ import (
 	"github.com/urfave/cli"
 )
 
+var Version = ""
+
 func main() {
 	app := &cli.App{
 		Name:        "psubuilder",
 		Description: "Builds PSU from local files or GitHub releases",
+		Version:     Version,
 		Commands: []cli.Command{
 			{
 				Name:  "tags",
