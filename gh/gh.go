@@ -65,15 +65,6 @@ func (g *Fetcher) GetAllTags() ([]string, error) {
 
 	tagNames := make([]string, len(tags))
 	for i, tag := range tags {
-		if tag.Name == "nightly" {
-			// Make sure nightly tag is always first
-			t := tagNames[0]
-			tagNames[0] = tag.Name
-			for j := 1; j <= i; j++ {
-				tagNames[j], t = t, tagNames[j]
-			}
-			continue
-		}
 		tagNames[i] = tag.Name
 	}
 
