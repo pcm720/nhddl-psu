@@ -26,6 +26,8 @@ type NHDDLVMode string
 
 const (
 	NHDDLVMode_Default = "default"
+	NHDDLVMode_NTSC    = "ntsc"
+	NHDDLVMode_PAL     = "pal"
 	NHDDLVMode_480p    = "480p"
 )
 
@@ -39,8 +41,12 @@ type NHDDLConfig struct {
 func (c NHDDLConfig) getYAML() string {
 	// Not using yaml library saves ~500KB
 	b := strings.Builder{}
-	if c.VMode == "480p" {
-		b.WriteString("480p:\n")
+	switch c.VMode {
+	case NHDDLVMode_480p:
+		b.WriteString("480p:\n") // To keep compatibility with older versions
+		fallthrough
+	case NHDDLVMode_NTSC, NHDDLVMode_PAL:
+		b.WriteString("video: " + string(c.VMode) + "\n")
 	}
 	if c.Mode != NHDDLMode_ALL {
 		b.WriteString("mode: " + string(c.Mode) + "\n")

@@ -165,17 +165,20 @@
                 <option value="ilink">iLink</option>
             </select>
             <br><br>
-            <div class="optionTitle">NHDDL video mode</div>
-            <select id="videoModeSelector" onchange="checkConfig()">
-                <option value="default">480i/576i</option>
-                <option value="480p">480p</option>
-            </select>
-            <br><br>
             <div class="optionTitle">PS2 IP Address for UDPBD</div>
             <input type="text" id="ipAddr" minlength="7" maxlength="15" size="15" onkeydown="checkConfig()"
                 onchange="checkConfig()"
                 pattern="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
             </input>
+            <br><br>
+            <div class="optionTitle">NHDDL video mode</div>
+            <select id="videoModeSelector" onchange="checkConfig()">
+                <option value="default">auto</option>
+                <option value="ntsc">NTSC</option>
+                <option value="pal">PAL</option>
+                <option value="480p">480p</option>
+            </select>
+            <i style="font-size: 0.8em">PAL and NTSC modes are supported since 1.1.0</i>
         </div>
         <i>File will be included in the generated PSU</i>
         <br>
