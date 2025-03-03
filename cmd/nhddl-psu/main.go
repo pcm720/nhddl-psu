@@ -81,11 +81,16 @@ func getNHDDLConfig() js.Func {
 
 		c := NHDDLConfig{
 			VMode:   args[0].String(),
-			Mode:    NHDDLMode(args[1].String()),
 			UDPBDIP: args[2].String(),
 		}
+		for i := 0; i < args[1].Length(); i++ {
+			if args[1].Index(i).String() == "auto" {
+				continue
+			}
+			c.Mode = append(c.Mode, NHDDLMode(args[1].Index(i).String()))
+		}
 
-		if c == emptyConfig {
+		if isConfigEmpty(c) {
 			return nil
 		}
 
@@ -114,8 +119,13 @@ func generatePSU() js.Func {
 
 		c := NHDDLConfig{
 			VMode:   args[2].Index(0).String(),
-			Mode:    NHDDLMode(args[2].Index(1).String()),
 			UDPBDIP: args[2].Index(2).String(),
+		}
+		for i := 0; i < args[2].Index(1).Length(); i++ {
+			if args[2].Index(1).Index(i).String() == "auto" {
+				continue
+			}
+			c.Mode = append(c.Mode, NHDDLMode(args[2].Index(1).Index(i).String()))
 		}
 
 		go func(tag string, isStandalone bool, config NHDDLConfig) {
@@ -125,7 +135,7 @@ func generatePSU() js.Func {
 				return
 			}
 
-			if c != emptyConfig {
+			if !isConfigEmpty(c) {
 				files = append(files, psu.File{
 					Name:     "nhddl.yaml",
 					Created:  time.Now(),
@@ -135,7 +145,8 @@ func generatePSU() js.Func {
 			}
 
 			targetFile := "nhddl.elf"
-			if isStandalone {
+			if (tag[0] == 'v') && (tag <= "v1.1.2") {
+				// Use standalone version for older releases
 				targetFile = "nhddl-standalone.elf"
 			}
 
@@ -147,7 +158,7 @@ func generatePSU() js.Func {
 			elfFile[0].Name = "nhddl.elf" // Force file name
 			files = append(files, elfFile[0])
 
-			if err := psu.BuildPSU(&b, "NHDDL", files); err != nil {
+			if err := psu.BuildPSU(&b, "APP_NHDDL", files); err != nil {
 				displayError(fmt.Sprintf("Failed to generate PSU: %s\n", err))
 				return
 			}
@@ -156,4 +167,18 @@ func generatePSU() js.Func {
 		}(tag, isStandalone, c)
 		return nil
 	})
+}
+
+func isConfigEmpty(c NHDDLConfig) bool {
+	if c.VMode != NHDDLVMode_Default {
+		return false
+	}
+	if len(c.Mode) != 0 {
+		return false
+	}
+	if c.UDPBDIP != "" {
+		return false
+	}
+
+	return true
 }
