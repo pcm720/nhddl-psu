@@ -81,11 +81,16 @@ func getNHDDLConfig() js.Func {
 
 		c := NHDDLConfig{
 			VMode:   args[0].String(),
-			Mode:    NHDDLMode(args[1].String()),
 			UDPBDIP: args[2].String(),
 		}
+		for i := 0; i < args[1].Length(); i++ {
+			if args[1].Index(i).String() == "auto" {
+				continue
+			}
+			c.Mode = append(c.Mode, NHDDLMode(args[1].Index(i).String()))
+		}
 
-		if c == emptyConfig {
+		if isConfigEmpty(c) {
 			return nil
 		}
 
@@ -100,7 +105,7 @@ func generatePSU() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		b.Reset()
 
-		if len(args) != 3 {
+		if len(args) != 2 {
 			displayError(fmt.Sprintf("Invalid number of arguments"))
 			return nil
 		}
@@ -110,22 +115,26 @@ func generatePSU() js.Func {
 			return nil
 		}
 
-		isStandalone := args[1].Bool()
-
 		c := NHDDLConfig{
-			VMode:   args[2].Index(0).String(),
-			Mode:    NHDDLMode(args[2].Index(1).String()),
-			UDPBDIP: args[2].Index(2).String(),
+			VMode:   args[1].Index(0).String(),
+			UDPBDIP: args[1].Index(2).String(),
+		}
+		for i := 0; i < args[1].Index(1).Length(); i++ {
+			if args[1].Index(1).Index(i).String() == "auto" {
+				continue
+			}
+			c.Mode = append(c.Mode, NHDDLMode(args[1].Index(1).Index(i).String()))
 		}
 
-		go func(tag string, isStandalone bool, config NHDDLConfig) {
+		go func(tag string, config NHDDLConfig) {
 			files, err := getEmbeddedFiles()
 			if err != nil {
 				displayError(fmt.Sprintf("Failed to get embedded files: %s\n", err))
 				return
 			}
 
-			if c != emptyConfig {
+			if !isConfigEmpty(c) {
+				fmt.Printf("Config: %s\n", c.getYAML())
 				files = append(files, psu.File{
 					Name:     "nhddl.yaml",
 					Created:  time.Now(),
@@ -135,9 +144,11 @@ func generatePSU() js.Func {
 			}
 
 			targetFile := "nhddl.elf"
-			if isStandalone {
+			if (tag[0] == 'v') && (tag <= "v1.1.2") {
+				// Use standalone version for older releases
 				targetFile = "nhddl-standalone.elf"
 			}
+			fmt.Printf("%s\n", targetFile)
 
 			elfFile, err := ghf.GetFiles(tag, []string{targetFile})
 			if err != nil {
@@ -147,13 +158,27 @@ func generatePSU() js.Func {
 			elfFile[0].Name = "nhddl.elf" // Force file name
 			files = append(files, elfFile[0])
 
-			if err := psu.BuildPSU(&b, "NHDDL", files); err != nil {
+			if err := psu.BuildPSU(&b, "APP_NHDDL", files); err != nil {
 				displayError(fmt.Sprintf("Failed to generate PSU: %s\n", err))
 				return
 			}
 			data := b.Bytes()
 			js.Global().Call("saveFile", "nhddl.psu", unsafe.Pointer(&data[0]), len(data))
-		}(tag, isStandalone, c)
+		}(tag, c)
 		return nil
 	})
+}
+
+func isConfigEmpty(c NHDDLConfig) bool {
+	if c.VMode != NHDDLVMode_Default {
+		return false
+	}
+	if len(c.Mode) != 0 {
+		return false
+	}
+	if c.UDPBDIP != "" {
+		return false
+	}
+
+	return true
 }

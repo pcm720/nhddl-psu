@@ -20,6 +20,8 @@ const (
 	NHDDLMode_MX4SIO = "mx4sio"
 	NHDDLMode_UDPBD  = "udpbd"
 	NHDDLMode_iLink  = "ilink"
+	NHDDLMode_MMCE   = "mmce"
+	NHDDLMode_HDL    = "hdl"
 )
 
 type NHDDLVMode string
@@ -34,7 +36,7 @@ const (
 type NHDDLConfig struct {
 	VMode   string
 	UDPBDIP string
-	Mode    NHDDLMode
+	Mode    []NHDDLMode
 }
 
 // Generates nhddl.yaml
@@ -48,18 +50,14 @@ func (c NHDDLConfig) getYAML() string {
 	case NHDDLVMode_NTSC, NHDDLVMode_PAL:
 		b.WriteString("video: " + string(c.VMode) + "\n")
 	}
-	if c.Mode != NHDDLMode_ALL {
-		b.WriteString("mode: " + string(c.Mode) + "\n")
+	for _, m := range c.Mode {
+		b.WriteString("mode: " + string(m) + "\n")
 	}
 	if c.UDPBDIP != "" {
 		b.WriteString("udpbd_ip: " + c.UDPBDIP)
 	}
 
 	return b.String()
-}
-
-var emptyConfig = NHDDLConfig{
-	VMode: NHDDLVMode_Default,
 }
 
 func getEmbeddedFiles() ([]psu.File, error) {

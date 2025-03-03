@@ -43,26 +43,31 @@
 
         function checkVersion() {
             let tagSelector = document.getElementById("tagSelector");
-            let versionSelector = document.getElementById("versionSelector");
             let btn = document.getElementById("downloadBtn");
             if (tagSelector.value === "unknown") {
                 btn.disabled = true;
                 return;
             }
             btn.disabled = false;
-
-            if ((tagSelector.value !== "nightly") && (tagSelector.value < "v0.4.0")) {
-                versionSelector.value = "non-standalone";
-                versionSelector.disabled = true;
-            } else {
-                versionSelector.disabled = false;
-            }
         }
 
         function checkConfig() {
             let ipAddr = document.getElementById("ipAddr");
             let vmodeSet = (document.getElementById("videoModeSelector").value === "default") ? false : true;
-            let modeSet = (document.getElementById("modeSelector").value === "") ? false : true;
+
+            let values = Array.from(document.getElementById("modeSelector").selectedOptions).map(option => option.value);
+            let modeSet = ((values.length === 0) || values.includes("auto", 0)) ? false : true;
+
+            let tag = document.getElementById("tagSelector").value;
+            if ((values.length > 1 || values.includes("mmce", 0) || values.includes("hdl", 0))
+                && (tag[0] === 'v') && (tag <= "v1.1.2")) {
+                // Invalidate multiple and MMCE/HDL modes for older versions
+                modeSet = false;
+            }
+
+            if (!modeSet) document.getElementById("modeSelector").selectedIndex = 0;
+
+
             let btn = document.getElementById("generateBtn");
 
             if (!ipAddr.checkValidity()) {
@@ -83,16 +88,12 @@
             let ipAddr = document.getElementById("ipAddr");
             if (ipAddr.checkValidity()) {
                 config[0] = document.getElementById("videoModeSelector").value;
-                config[1] = document.getElementById("modeSelector").value;
+                config[1] = Array.from(document.getElementById("modeSelector").selectedOptions).map(option => option.value);
                 config[2] = ipAddr.value;
             }
             let tag = document.getElementById("tagSelector").value;
 
-            let standalone = false;
-            if (document.getElementById("versionSelector").value === "standalone") {
-                standalone = true;
-            }
-            buildPSU(tagSelector.value, standalone, config);
+            buildPSU(tagSelector.value, config);
         }
 
         function generateYAML() {
@@ -103,7 +104,7 @@
                 return;
             }
             let vmode = document.getElementById("videoModeSelector").value;
-            let mode = document.getElementById("modeSelector").value;
+            let mode = Array.from(document.getElementById("modeSelector").selectedOptions).map(option => option.value);
             getNHDDLConfig(vmode, mode, ipAddr.value);
         }
 
@@ -146,24 +147,22 @@
                 <option>unknown</option>
             </select>
             <br><br>
-            <div class="optionTitle">Version</div>
-            <select id="versionSelector" onchange="checkVersion()">
-                <option value="non-standalone">non-standalone</option>
-                <option value="standalone">standalone</option>
-            </select>
         </div>
         <br>
         <div class="title">Configuration file</div>
         <div class="selectorGroup">
             <div class="optionTitle">NHDDL mode</div>
-            <select id="modeSelector" onchange="checkConfig()">
-                <option value="">auto</option>
+            <select multiple id="modeSelector" class="modeSelector" onchange="checkConfig()">
+                <option value="auto">Auto (default)</option>
                 <option value="ata">ATA</option>
                 <option value="usb">USB</option>
                 <option value="mx4sio">MX4SIO</option>
                 <option value="udpbd">UDPBD</option>
                 <option value="ilink">iLink</option>
+                <option value="mmce">MMCE</option>
+                <option value="hdl">HD Loader</option>
             </select>
+            <i style="font-size: 0.8em">Multiple modes, MMCE/HDL are supported since 2.0</i>
             <br><br>
             <div class="optionTitle">PS2 IP Address for UDPBD</div>
             <input type="text" id="ipAddr" minlength="7" maxlength="15" size="15" onkeydown="checkConfig()"
@@ -265,6 +264,11 @@
     input:invalid {
         color: red;
         border: 2px solid red;
+    }
+
+    .modeSelector {
+        height: 10.2em;
+        overflow-y: hidden;
     }
 
     select {
