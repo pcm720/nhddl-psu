@@ -105,7 +105,7 @@ func generatePSU() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		b.Reset()
 
-		if len(args) != 3 {
+		if len(args) != 2 {
 			displayError(fmt.Sprintf("Invalid number of arguments"))
 			return nil
 		}
@@ -115,20 +115,18 @@ func generatePSU() js.Func {
 			return nil
 		}
 
-		isStandalone := args[1].Bool()
-
 		c := NHDDLConfig{
-			VMode:   args[2].Index(0).String(),
-			UDPBDIP: args[2].Index(2).String(),
+			VMode:   args[1].Index(0).String(),
+			UDPBDIP: args[1].Index(2).String(),
 		}
-		for i := 0; i < args[2].Index(1).Length(); i++ {
-			if args[2].Index(1).Index(i).String() == "auto" {
+		for i := 0; i < args[1].Index(1).Length(); i++ {
+			if args[1].Index(1).Index(i).String() == "auto" {
 				continue
 			}
-			c.Mode = append(c.Mode, NHDDLMode(args[2].Index(1).Index(i).String()))
+			c.Mode = append(c.Mode, NHDDLMode(args[1].Index(1).Index(i).String()))
 		}
 
-		go func(tag string, isStandalone bool, config NHDDLConfig) {
+		go func(tag string, config NHDDLConfig) {
 			files, err := getEmbeddedFiles()
 			if err != nil {
 				displayError(fmt.Sprintf("Failed to get embedded files: %s\n", err))
@@ -136,6 +134,7 @@ func generatePSU() js.Func {
 			}
 
 			if !isConfigEmpty(c) {
+				fmt.Printf("Config: %s\n", c.getYAML())
 				files = append(files, psu.File{
 					Name:     "nhddl.yaml",
 					Created:  time.Now(),
@@ -149,6 +148,7 @@ func generatePSU() js.Func {
 				// Use standalone version for older releases
 				targetFile = "nhddl-standalone.elf"
 			}
+			fmt.Printf("%s\n", targetFile)
 
 			elfFile, err := ghf.GetFiles(tag, []string{targetFile})
 			if err != nil {
@@ -164,7 +164,7 @@ func generatePSU() js.Func {
 			}
 			data := b.Bytes()
 			js.Global().Call("saveFile", "nhddl.psu", unsafe.Pointer(&data[0]), len(data))
-		}(tag, isStandalone, c)
+		}(tag, c)
 		return nil
 	})
 }

@@ -50,7 +50,7 @@ func (c NHDDLConfig) getYAML() string {
 	case NHDDLVMode_NTSC, NHDDLVMode_PAL:
 		b.WriteString("video: " + string(c.VMode) + "\n")
 	}
-	for m := range c.Mode {
+	for _, m := range c.Mode {
 		b.WriteString("mode: " + string(m) + "\n")
 	}
 	if c.UDPBDIP != "" {
