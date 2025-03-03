@@ -4,6 +4,9 @@ VERSION ?= $(shell git describe --always --dirty --tags --exclude pages)
 
 all: nhddl-psu
 
+podman:
+	podman run --rm --userns=keep-id -v $(shell pwd):/src docker.io/tinygo/tinygo:0.35.0 make -C /src
+
 wasm:
 	mkdir out
 	GOOS=js GOARCH=wasm tinygo build -o out/app.wasm -ldflags "-X main.Repo=$(REPO) -X main.CORSProxy=$(CORS_PROXY)" ./cmd/nhddl-psu
