@@ -152,7 +152,7 @@
         <div class="title">Configuration file</div>
         <div class="selectorGroup">
             <div class="optionTitle">NHDDL mode</div>
-            <select multiple id="modeSelector" class="modeSelector" onchange="checkConfig()">
+            <select multiple id="modeSelector" class="modeSelector" size="8" onchange="checkConfig()">
                 <option value="auto">Auto (default)</option>
                 <option value="ata">ATA</option>
                 <option value="usb">USB</option>
@@ -267,8 +267,8 @@
     }
 
     .modeSelector {
-        height: 10.2em;
-        overflow-y: hidden;
+        height: fit-content;
+        overflow: hidden;
     }
 
     select {
