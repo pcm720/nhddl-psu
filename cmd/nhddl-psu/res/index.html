@@ -64,6 +64,11 @@
                 // Invalidate multiple and MMCE/HDL modes for older versions
                 modeSet = false;
             }
+            if ((values.includes("udpfs", 0))
+                && (tag[0] === 'v') && (tag < "v1.2.2")) {
+                // Invalidate UDPFS for older versions
+                modeSet = false;
+            }
 
             if (!modeSet) document.getElementById("modeSelector").selectedIndex = 0;
 
@@ -158,11 +163,14 @@
                 <option value="usb">USB</option>
                 <option value="mx4sio">MX4SIO</option>
                 <option value="udpbd">UDPBD</option>
+                <option value="udpfs">UDPFS</option>
                 <option value="ilink">iLink</option>
                 <option value="mmce">MMCE</option>
                 <option value="hdl">HD Loader</option>
             </select>
             <i style="font-size: 0.8em">Multiple modes, MMCE/HDL are supported since 1.2.0</i>
+            <br>
+            <i style="font-size: 0.8em">UDPFS is supported since 1.2.2</i>
             <br><br>
             <div class="optionTitle">PS2 IP Address for UDPBD</div>
             <input type="text" id="ipAddr" minlength="7" maxlength="15" size="15" onkeydown="checkConfig()"

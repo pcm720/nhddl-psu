@@ -19,6 +19,7 @@ const (
 	NHDDLMode_USB    = "usb"
 	NHDDLMode_MX4SIO = "mx4sio"
 	NHDDLMode_UDPBD  = "udpbd"
+	NHDDLMode_UDPFS  = "udpfs"
 	NHDDLMode_iLink  = "ilink"
 	NHDDLMode_MMCE   = "mmce"
 	NHDDLMode_HDL    = "hdl"
