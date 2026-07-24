@@ -64,6 +64,11 @@
                 // Invalidate multiple and MMCE/HDL modes for older versions
                 modeSet = false;
             }
+            if ((values.includes("udpbd", 0))
+                && (tag[0] === 'v') && (tag >= "v1.2.2")) {
+                // Invalidate UDPBD for newer versions
+                modeSet = false;
+            }
             if ((values.includes("udpfs", 0))
                 && (tag[0] === 'v') && (tag < "v1.2.2")) {
                 // Invalidate UDPFS for older versions
@@ -170,9 +175,9 @@
             </select>
             <i style="font-size: 0.8em">Multiple modes, MMCE/HDL are supported since 1.2.0</i>
             <br>
-            <i style="font-size: 0.8em">UDPFS is supported since 1.2.2</i>
+            <i style="font-size: 0.8em">UDPBD has been replaced with UDPFS since 1.2.2</i>
             <br><br>
-            <div class="optionTitle">PS2 IP Address for UDPBD</div>
+            <div class="optionTitle">PS2 IP Address for UDPBD/UDPFS</div>
             <input type="text" id="ipAddr" minlength="7" maxlength="15" size="15" onkeydown="checkConfig()"
                 onchange="checkConfig()"
                 pattern="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">

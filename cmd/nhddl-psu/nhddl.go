@@ -55,7 +55,8 @@ func (c NHDDLConfig) getYAML() string {
 		b.WriteString("mode: " + string(m) + "\n")
 	}
 	if c.UDPBDIP != "" {
-		b.WriteString("udpbd_ip: " + c.UDPBDIP)
+		b.WriteString("udpbd_ip: " + c.UDPBDIP + "\n")
+		b.WriteString("udpfs_ip: " + c.UDPBDIP)
 	}
 
 	return b.String()
