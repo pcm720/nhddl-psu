@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"path"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/pcm720/nhddl-psu/gh/internal/fetch"
@@ -47,7 +49,19 @@ func (g *Fetcher) getReleaseURL(tag string) (string, error) {
 		return "", errors.New("no assets")
 	}
 
-	return release.Assets[0].BrowserDownloadURL, nil
+	// find the .zip in the release assets
+	for _, a := range release.Assets {
+		u, err := url.Parse(a.BrowserDownloadURL)
+		if err != nil {
+			continue
+		}
+
+		if strings.HasSuffix(u.Path, ".zip") {
+			return a.BrowserDownloadURL, nil
+		}
+	}
+
+	return "", errors.New("no zip archive found in release")
 }
 
 func (g *Fetcher) GetAllTags() ([]string, error) {
